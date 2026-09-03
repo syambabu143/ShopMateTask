@@ -7,6 +7,7 @@ const AdminDashboard = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -16,259 +17,511 @@ const AdminDashboard = () => {
         image: ''
     });
 
+    // Backend API URL
+    //const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL =
+        import.meta.env.VITE_API_URL || 'https://shopmatetask.onrender.com';
+
+    console.log("Admin API URL:", API_URL);
+
+    //console.log('Admin API URL:', API_URL);
+    console.log("VITE ENV:", import.meta.env);
+    console.log("Admin API URL:", import.meta.env.VITE_API_URL);
+
     useEffect(() => {
         fetchProducts();
     }, []);
 
+    // Fetch products
     const fetchProducts = async () => {
         try {
-            const response = await axios.get('http://localhost:3001/api/products');
-            setProducts(response.data);
+            const response = await axios.get(
+                `${API_URL}/api/products`
+            );
+
+            if (Array.isArray(response.data)) {
+                setProducts(response.data);
+            } else {
+                console.error('Invalid products response:', response.data);
+                setProducts([]);
+            }
         } catch (error) {
             console.error('Error fetching products:', error);
+            setProducts([]);
         }
     };
 
+    // Delete product
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this product?')) {
             try {
-                await axios.delete(`http://localhost:3001/api/products/${id}`);
+                await axios.delete(
+                    `${API_URL}/api/products/${id}`
+                );
+
+                alert('Product deleted successfully!');
+
                 fetchProducts();
             } catch (error) {
                 console.error('Error deleting product:', error);
+                alert('Unable to delete product.');
             }
         }
     };
 
+    // Add / Edit product
     const handleSubmit = async (e) => {
         e.preventDefault();
+
         try {
             if (editingProduct) {
-                await axios.put(`http://localhost:3001/api/products/${editingProduct._id}`, formData);
+                await axios.put(
+                    `${API_URL}/api/products/${editingProduct._id}`,
+                    formData
+                );
+
+                alert('Product updated successfully!');
             } else {
-                await axios.post('http://localhost:3001/api/products', formData);
+                await axios.post(
+                    `${API_URL}/api/products`,
+                    formData
+                );
+
+                alert('Product added successfully!');
             }
+
             setIsModalOpen(false);
             setEditingProduct(null);
-            setFormData({ name: '', description: '', price: '', category: '', stock: '', image: '' });
+
+            setFormData({
+                name: '',
+                description: '',
+                price: '',
+                category: '',
+                stock: '',
+                image: ''
+            });
+
             fetchProducts();
+
         } catch (error) {
             console.error('Error saving product:', error);
+            alert('Unable to save product. Check the console for details.');
         }
     };
 
+    // Generate AI description
     const handleGenerateDescription = async () => {
-    if (!formData.name || !formData.category) {
-        alert("Please enter Product Name and Category first.");
-        return;
-    }
+        if (!formData.name || !formData.category) {
+            alert('Please enter Product Name and Category first.');
+            return;
+        }
 
-    try {
-        setIsGeneratingDescription(true);
+        try {
+            setIsGeneratingDescription(true);
 
-        const response = await axios.post(
-            "http://localhost:3001/api/products/generate-description",
-            {
-                name: formData.name,
-                category: formData.category,
-            }
-        );
+            const response = await axios.post(
+                `${API_URL}/api/products/generate-description`, 
+                {
+                    name: formData.name,
+                    category: formData.category
+                }
+            );
 
-        setFormData((prev) => ({
-            ...prev,
-            description: response.data.description,
-        }));
-     } catch (error) {
-        console.error("Error generating description:", error);
-        alert("Unable to generate description. Please try again.");
-    } finally {
-        setIsGeneratingDescription(false);
+            setFormData((prev) => ({
+                ...prev,
+                description: response.data.description
+            }));
+
+        } catch (error) {
+            console.error('Error generating description:', error);
+            alert('Unable to generate description. Please try again.');
+        } finally {
+            setIsGeneratingDescription(false);
         }
     };
 
+    // Open edit modal
     const openEditModal = (product) => {
         setEditingProduct(product);
+
         setFormData({
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            category: product.category,
-            stock: product.stock,
-            image: product.image
+            name: product.name || '',
+            description: product.description || '',
+            price: product.price || '',
+            category: product.category || '',
+            stock: product.stock || '',
+            image: product.image || ''
         });
+
         setIsModalOpen(true);
     };
 
+    // Open add modal
     const openAddModal = () => {
         setEditingProduct(null);
-        setFormData({ name: '', description: '', price: '', category: '', stock: '', image: '' });
+
+        setFormData({
+            name: '',
+            description: '',
+            price: '',
+            category: '',
+            stock: '',
+            image: ''
+        });
+
         setIsModalOpen(true);
     };
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+            {/* Header */}
             <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+
+                <h1 className="text-3xl font-bold">
+                    Admin Dashboard
+                </h1>
+
                 <button
                     onClick={openAddModal}
                     className="bg-black text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-800"
                 >
-                    <Plus size={20} /> Add Product
+                    <Plus size={20} />
+                    Add Product
                 </button>
+
             </div>
 
+            {/* Products Table */}
             <div className="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
+
                 <table className="min-w-full divide-y divide-gray-200">
+
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Product
+                            </th>
+
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Category
+                            </th>
+
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Price
+                            </th>
+
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Stock
+                            </th>
+
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                            </th>
+
                         </tr>
                     </thead>
+
                     <tbody className="bg-white divide-y divide-gray-200">
+
                         {products.map((product) => (
                             <tr key={product._id}>
+
                                 <td className="px-6 py-4 whitespace-nowrap">
+
                                     <div className="flex items-center">
+
                                         <div className="flex-shrink-0 h-10 w-10">
-                                            <img className="h-10 w-10 rounded-full object-cover" src={product.image || 'https://via.placeholder.com/40'} alt="" />
+
+                                            <img
+                                                className="h-10 w-10 rounded-full object-cover"
+                                                src={
+                                                    product.image ||
+                                                    'https://via.placeholder.com/40'
+                                                }
+                                                alt=""
+                                            />
+
                                         </div>
+
                                         <div className="ml-4">
-                                            <div className="text-sm font-medium text-gray-900">{product.name}</div>
+
+                                            <div className="text-sm font-medium text-gray-900">
+                                                {product.name}
+                                            </div>
+
                                         </div>
+
                                     </div>
+
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${product.price}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.stock}</td>
+
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {product.category}
+                                </td>
+
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ${product.price}
+                                </td>
+
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {product.stock}
+                                </td>
+
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onClick={() => openEditModal(product)} className="text-indigo-600 hover:text-indigo-900 mr-4">
+
+                                    <button
+                                        onClick={() => openEditModal(product)}
+                                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                                    >
                                         <Edit size={18} />
                                     </button>
-                                    <button onClick={() => handleDelete(product._id)} className="text-red-600 hover:text-red-900">
+
+                                    <button
+                                        onClick={() => handleDelete(product._id)}
+                                        className="text-red-600 hover:text-red-900"
+                                    >
                                         <Trash2 size={18} />
                                     </button>
+
                                 </td>
+
                             </tr>
                         ))}
+
                     </tbody>
+
                 </table>
+
+                {products.length === 0 && (
+                    <div className="text-center py-10 text-gray-500">
+                        No products available.
+                    </div>
+                )}
+
             </div>
 
             {/* Modal */}
             {isModalOpen && (
+
                 <div className="fixed inset-0 z-50 overflow-y-auto">
+
                     <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+
+                        {/* Background */}
+                        <div
+                            className="fixed inset-0 transition-opacity"
+                            aria-hidden="true"
+                        >
                             <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
                         </div>
-                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                        <span
+                            className="hidden sm:inline-block sm:align-middle sm:h-screen"
+                            aria-hidden="true"
+                        >
+                            &#8203;
+                        </span>
+
+                        {/* Modal Box */}
                         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+
                             <form onSubmit={handleSubmit}>
+
                                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+
+                                    {/* Modal Header */}
                                     <div className="flex justify-between items-center mb-4">
+
                                         <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                            {editingProduct ? 'Edit Product' : 'Add New Product'}
+                                            {editingProduct
+                                                ? 'Edit Product'
+                                                : 'Add New Product'}
                                         </h3>
-                                        <button type="button" onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-500">
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsModalOpen(false)}
+                                            className="text-gray-400 hover:text-gray-500"
+                                        >
                                             <X size={20} />
                                         </button>
+
                                     </div>
 
                                     <div className="space-y-4">
+
+                                        {/* Name */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Name</label>
+
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Name
+                                            </label>
+
                                             <input
                                                 type="text"
                                                 required
                                                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm"
                                                 value={formData.name}
-                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        name: e.target.value
+                                                    })
+                                                }
                                             />
+
                                         </div>
+
+                                        {/* Description */}
                                         <div>
+
                                             <div className="flex justify-between items-center mb-2">
+
                                                 <label className="block text-sm font-medium text-gray-700">
                                                     Description
                                                 </label>
-                                            <button
-                                             type="button"
-                                             onClick={handleGenerateDescription}
-                                             disabled={
-                                                isGeneratingDescription ||
-                                                !formData.name ||
-                                                !formData.category
-                                            }
-                                            className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 disabled:cursor-not-allowed">
-                                                <Sparkles className="h-4 w-4" />
-                                                {isGeneratingDescription ? "Generating..." : "Generate with AI"}
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleGenerateDescription}
+                                                    disabled={
+                                                        isGeneratingDescription ||
+                                                        !formData.name ||
+                                                        !formData.category
+                                                    }
+                                                    className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                                >
+                                                    <Sparkles className="h-4 w-4" />
+
+                                                    {isGeneratingDescription
+                                                        ? 'Generating...'
+                                                        : 'Generate with AI'}
                                                 </button>
+
                                             </div>
+
                                             <textarea
-                                            required
-                                            rows={3}
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm"
-                                            value={formData.description}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    description: e.target.value,
-                                                })
-                                            } />
+                                                required
+                                                rows={3}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm"
+                                                value={formData.description}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        description: e.target.value
+                                                    })
+                                                }
+                                            />
+
                                         </div>
+
+                                        {/* Price and Stock */}
                                         <div className="grid grid-cols-2 gap-4">
+
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700">Price</label>
+
+                                                <label className="block text-sm font-medium text-gray-700">
+                                                    Price
+                                                </label>
+
                                                 <input
                                                     type="number"
                                                     required
                                                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm"
                                                     value={formData.price}
-                                                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                                                    onChange={(e) =>
+                                                        setFormData({
+                                                            ...formData,
+                                                            price: e.target.value
+                                                        })
+                                                    }
                                                 />
+
                                             </div>
+
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700">Stock</label>
+
+                                                <label className="block text-sm font-medium text-gray-700">
+                                                    Stock
+                                                </label>
+
                                                 <input
                                                     type="number"
                                                     required
                                                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm"
                                                     value={formData.stock}
-                                                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                                                    onChange={(e) =>
+                                                        setFormData({
+                                                            ...formData,
+                                                            stock: e.target.value
+                                                        })
+                                                    }
                                                 />
+
                                             </div>
+
                                         </div>
+
+                                        {/* Category */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Category</label>
+
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Category
+                                            </label>
+
                                             <input
                                                 type="text"
                                                 required
                                                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm"
                                                 value={formData.category}
-                                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        category: e.target.value
+                                                    })
+                                                }
                                             />
+
                                         </div>
+
+                                        {/* Image */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Image URL</label>
+
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Image URL
+                                            </label>
+
                                             <input
                                                 type="url"
                                                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-black focus:border-black sm:text-sm"
                                                 value={formData.image}
-                                                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        image: e.target.value
+                                                    })
+                                                }
                                             />
+
                                         </div>
+
                                     </div>
+
                                 </div>
+
+                                {/* Modal Buttons */}
                                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+
                                     <button
                                         type="submit"
                                         className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-black text-base font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black sm:ml-3 sm:w-auto sm:text-sm"
                                     >
                                         Save
                                     </button>
+
                                     <button
                                         type="button"
                                         onClick={() => setIsModalOpen(false)}
@@ -276,12 +529,19 @@ const AdminDashboard = () => {
                                     >
                                         Cancel
                                     </button>
+
                                 </div>
+
                             </form>
+
                         </div>
+
                     </div>
+
                 </div>
+
             )}
+
         </div>
     );
 };
